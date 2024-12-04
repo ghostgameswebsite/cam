@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Camera & Recorder</title>
+    <style>
+        video, canvas {
+            display: block;
+            margin: 20px auto;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            margin: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Camera and Audio Recorder</h1>
+
+    <!-- Video element for showing camera feed -->
+    <video id="video" width="640" height="480" autoplay></video>
+
+    <!-- Buttons -->
+    <button id="muteButton">Mute</button>
+    <button id="takePicButton">Take Picture</button>
+    <button id="startRecordingButton">Start Recording</button>
+    <button id="stopRecordingButton" style="display: none;">Stop Recording</button>
+
+    <!-- Canvas for displaying the photo -->
+    <canvas id="canvas" width="640" height="480" style="display: none;"></canvas>
+
+    <!-- Image download link -->
+    <a id="downloadLink" style="display: none;" download="photo.png">Download Photo</a>
+
+    <script>
+        let video = document.getElementById('video');
+        let canvas = document.getElementById('canvas');
+        let context = canvas.getContext('2d');
+        let muteButton = document.getElementById('muteButton');
+        let takePicButton = document.getElementById('takePicButton');
+        let startRecordingButton = document.getElementById('startRecordingButton');
+        let stopRecordingButton = document.getElementById('stopRecordingButton');
+        let downloadLink = document.getElementById('downloadLink');
+
+        let mediaStream;
+        let mediaRecorder;
+        let chunks = [];
+        let isMuted = false;
+        let isRecording = false;
+
+        // Access the camera and microphone
+        async function startCamera() {
+            try {
+                mediaStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                video.srcObject = mediaStream;
+            } catch (err) {
+                console.error('Error accessing media devices:', err);
+            }
+        }
+
+        // Mute/unmute the microphone
+        muteButton.addEventListener('click', () => {
+            isMuted = !isMuted;
+            mediaStream.getAudioTracks().forEach(track => track.enabled = !isMuted);
+            muteButton.textContent = isMuted ? 'Unmute' : 'Mute';
+        });
+
+        // Take a picture and display it
+        takePicButton.addEventListener('click', () => {
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            let dataUrl = canvas.toDataURL('image/png');
+            downloadLink.href = dataUrl;
+            downloadLink.style.display = 'inline';
+        });
+
+        // Start recording video
+        startRecordingButton.addEventListener('click', () => {
+            mediaRecorder = new MediaRecorder(mediaStream);
+            mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
+            mediaRecorder.onstop = () => {
+                const blob = new Blob(chunks, { type: 'video/webm' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'video.webm';
+                a.click();
+            };
+            mediaRecorder.start();
+            isRecording = true;
+            startRecordingButton.style.display = 'none';
+            stopRecordingButton.style.display = 'inline';
+        });
+
+        // Stop recording video
+        stopRecordingButton.addEventListener('click', () => {
+            mediaRecorder.stop();
+            isRecording = false;
+            startRecordingButton.style.display = 'inline';
+            stopRecordingButton.style.display = 'none';
+        });
+
+        // Start the camera feed when the page loads
+        startCamera();
+    </script>
+</body>
+</html>
